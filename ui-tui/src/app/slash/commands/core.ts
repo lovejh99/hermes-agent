@@ -608,5 +608,35 @@ export const coreCommands: SlashCommand[] = [
         })
       )
     }
+  },
+
+  {
+    aliases: ['pl'],
+    help: 'switch to powerline-style status bar (native|powerline|toggle)',
+    name: 'powerline',
+    run: (arg, ctx) => {
+      const mode = arg.trim().toLowerCase()
+
+      if (!mode || mode === 'toggle') {
+        const next = !ctx.ui.powerlineMode
+        patchUiState({ powerlineMode: next })
+        queueMicrotask(() => ctx.transcript.sys(next ? 'powerline mode' : 'native mode'))
+        return
+      }
+
+      if (mode === 'native' || mode === 'off') {
+        patchUiState({ powerlineMode: false })
+        queueMicrotask(() => ctx.transcript.sys('native mode'))
+        return
+      }
+
+      if (mode === 'powerline' || mode === 'on') {
+        patchUiState({ powerlineMode: true })
+        queueMicrotask(() => ctx.transcript.sys('powerline mode'))
+        return
+      }
+
+      ctx.transcript.sys('usage: /powerline [native|powerline|toggle]')
+    }
   }
 ]

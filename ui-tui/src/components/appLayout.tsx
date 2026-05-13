@@ -18,7 +18,7 @@ import {
 import { PerfPane } from '../lib/perfPane.js'
 
 import { AgentsOverlay } from './agentsOverlay.js'
-import { GoodVibesHeart, StatusRule, StickyPromptTracker, TranscriptScrollbar } from './appChrome.js'
+import { GoodVibesHeart, PowerlineStatusRule, StatusRule, StickyPromptTracker, TranscriptScrollbar } from './appChrome.js'
 import { FloatingOverlays, PromptZone } from './appOverlays.js'
 import { Banner, Panel, SessionPanel } from './branding.js'
 import { FpsOverlay } from './fpsOverlay.js'
@@ -246,7 +246,7 @@ const ComposerPane = memo(function ComposerPane({
         <Box height={1} onMouseDown={captureInputDrag} onMouseDrag={dragFromSpacer} onMouseUp={endInputDrag} />
       )}
 
-      <StatusRulePane at="top" composer={composer} status={status} />
+      {!ui.powerlineMode ? <StatusRulePane at="top" composer={composer} status={status} /> : null}
 
       <Box flexDirection="column" marginTop={ui.statusBar === 'top' ? 0 : 1} position="relative">
         <FloatingOverlays
@@ -317,7 +317,32 @@ const ComposerPane = memo(function ComposerPane({
 
       {!composer.empty && !ui.sid && <Text color={ui.theme.color.muted}>⚕ {ui.status}</Text>}
 
-      <StatusRulePane at="bottom" composer={composer} status={status} />
+      {ui.powerlineMode ? (
+        <Box marginTop={1}>
+          <PowerlineStatusRule
+            apiMode={ui.info?.api_mode}
+            baseUrl={ui.info?.base_url}
+            bgCount={ui.bgTasks.size}
+            busy={ui.busy}
+            cols={composer.cols}
+            cwdLabel={status.cwdLabel}
+            model={ui.info?.model ?? ''}
+            modelFast={ui.info?.fast || ui.info?.service_tier === 'priority'}
+            modelReasoningEffort={ui.info?.reasoning_effort}
+            provider={ui.info?.provider}
+            sessionStartedAt={status.sessionStartedAt}
+            showCost={ui.showCost}
+            status={ui.status}
+            statusColor={status.statusColor}
+            t={ui.theme}
+            turnStartedAt={status.turnStartedAt}
+            usage={ui.usage}
+            voiceLabel={status.voiceLabel}
+          />
+        </Box>
+      ) : null}
+
+      {!ui.powerlineMode ? <StatusRulePane at="bottom" composer={composer} status={status} /> : null}
     </NoSelect>
   )
 })

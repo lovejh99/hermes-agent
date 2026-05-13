@@ -419,6 +419,193 @@ export function StatusRule({
   )
 }
 
+/**
+ * PowerlineStatusRule —  powerline arrow-segmented status bar.
+ *
+ * Each segment is a <Text> with its own backgroundColor, bridged to the
+ * next by a ❯ character whose color matches the PREVIOUS segment's bg
+ * and backgroundColor matches the NEXT segment's bg.  This creates the
+ * classic powerline arrow/chevron effect without requiring a patched
+ * font.
+ *
+ * Renders BELOW the composer (input box) when powerlineMode is enabled.
+ */
+function PwrSeg({
+  children,
+  bg,
+  fg
+}: {
+  children: ReactNode
+  bg: string
+  fg: string
+}) {
+  return (
+    <Text backgroundColor={bg} color={fg}>
+      {children}
+    </Text>
+  )
+}
+
+function PwrArrow({
+  prevBg,
+  nextBg
+}: {
+  prevBg: string
+  nextBg: string
+}) {
+  return (
+    <Text color={prevBg} backgroundColor={nextBg}>
+      {'❯'}
+    </Text>
+  )
+}
+
+function PwrTerminator({ bg }: { bg: string }) {
+  return (
+    <Text color={bg}>
+      {'❯'}
+    </Text>
+  )
+}
+
+export function PowerlineStatusRule({
+  busy,
+  status,
+  statusColor,
+  model,
+  provider,
+  baseUrl,
+  modelFast,
+  modelReasoningEffort,
+  usage,
+  sessionStartedAt,
+  turnStartedAt,
+  voiceLabel,
+  bgCount,
+  cwdLabel,
+  cols,
+  showCost,
+  t
+}: StatusRuleProps) {
+  const pct = usage.context_percent
+  const barColor = ctxBarColor(pct, t)
+
+  // Build ordered segment descriptors
+  type Seg = { bg: string; fg: string; node: ReactNode }
+  const segs: Seg[] = []
+
+  // Provider segment
+  const provLabel = provider || (baseUrl ? 'custom' : '')
+  if (provLabel) {
+    const ep = baseUrl && formatEndpoint(baseUrl) !== provLabel ? `@${formatEndpoint(baseUrl)}` : ''
+    segs.push({ bg: t.color.statusGood, fg: t.color.statusBg, node: ` ◉ ${provLabel}${ep} ` })
+  }
+
+  // Model segment
+  const ml = modelLabel(model, modelReasoningEffort, modelFast)
+  if (ml) {
+    segs.push({ bg: t.color.accent, fg: t.color.statusBg, node: ` ⚙ ${ml} ` })
+  }
+
+  // Token segment
+  const ctxLabel = usage.context_max
+    ? `${fmtK(usage.context_used ?? 0)}/${fmtK(usage.context_max)}`
+    : usage.total > 0
+      ? `${fmtK(usage.input)}↑/${fmtK(usage.output)}↓`
+      : ''
+
+  if (ctxLabel) {
+    const tokBg = pct != null && pct >= 80 ? barColor : t.color.primary
+    segs.push({ bg: tokBg, fg: t.color.statusBg, node: ` ◈ ${ctxLabel} ` })
+  }
+
+  // Context progress bar
+  if (usage.context_max && pct != null) {
+    const bar = ctxBar(pct, 6)
+    segs.push({ bg: barColor, fg: t.color.statusBg, node: ` [${bar}] ${pct}% ` })
+  }
+
+  // Duration — use live SessionDuration component
+  if (sessionStartedAt) {
+    segs.push({
+      bg: t.color.border,
+      fg: t.color.text,
+      node: (
+        <>
+          {' ⏱ '}
+          <SessionDuration startedAt={turnStartedAt ?? sessionStartedAt} />
+          {' '}
+        </>
+      )
+    })
+  }
+
+  // Voice
+  if (voiceLabel) {
+    segs.push({
+      bg: voiceLabel.startsWith('●') ? t.color.error : voiceLabel.startsWith('◉') ? t.color.warn : t.color.muted,
+      fg: t.color.statusBg,
+      node: ` ${voiceLabel} `
+    })
+  }
+
+  // Background tasks
+  if (bgCount > 0) {
+    segs.push({ bg: t.color.muted, fg: t.color.text, node: ` ${bgCount} bg ` })
+  }
+
+  // Cost
+  if (showCost && typeof usage.cost_usd === 'number') {
+    segs.push({ bg: t.color.muted, fg: t.color.text, node: ` $${usage.cost_usd.toFixed(4)} ` })
+  }
+
+  // Compressions
+  if (typeof usage.compressions === 'number' && usage.compressions > 0) {
+    const cmpColor = usage.compressions >= 10 ? t.color.error : usage.compressions >= 5 ? t.color.warn : t.color.border
+    segs.push({ bg: cmpColor, fg: t.color.statusBg, node: ` cmp ${usage.compressions} ` })
+  }
+
+  const leftWidth = Math.max(12, cols - cwdLabel.length - 3)
+
+  return (
+    <Box height={1} minWidth={leftWidth}>
+      <Box flexShrink={1}>
+        {/* Busy indicator always first */}
+        {busy ? (
+          <Text color={t.color.border}>
+            {'─ '}
+          </Text>
+        ) : null}
+        {busy ? (
+          <FaceTicker color={statusColor} startedAt={turnStartedAt} />
+        ) : !status ? null : (
+          <PwrSeg bg={t.color.muted} fg={t.color.text}>
+            {' '}
+            {status}
+            {' '}
+          </PwrSeg>
+        )}
+
+        {/* Powerline arrow-chained segments */}
+        {segs.map((s, i) => (
+          <Text key={`pl${i}`}>
+            {i > 0 || busy || status ? <PwrArrow prevBg={i > 0 ? segs[i - 1]!.bg : t.color.muted} nextBg={s.bg} /> : null}
+            <PwrSeg bg={s.bg} fg={s.fg}>
+              {s.node}
+            </PwrSeg>
+          </Text>
+        ))}
+
+        {/* Terminal arrow after last segment */}
+        {segs.length > 0 ? <PwrTerminator bg={segs[segs.length - 1]!.bg} /> : null}
+
+        <Text color={t.color.border}> ─ </Text>
+      </Box>
+      <Text color={t.color.label}>{cwdLabel}</Text>
+    </Box>
+  )
+}
+
 export function FloatBox({ children, color }: { children: ReactNode; color: string }) {
   return (
     <Box
