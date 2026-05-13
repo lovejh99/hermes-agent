@@ -141,11 +141,14 @@ export interface McpServerStatus {
 }
 
 export interface SessionInfo {
+  api_mode?: string
+  base_url?: string
   cwd?: string
   fast?: boolean
   lazy?: boolean
   mcp_servers?: McpServerStatus[]
   model: string
+  provider?: string
   reasoning_effort?: string
   release_date?: string
   service_tier?: string

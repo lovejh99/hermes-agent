@@ -245,6 +245,22 @@ const shortModelLabel = (model: string) =>
 const modelLabel = (model: string, effort?: string, fast?: boolean) =>
   [shortModelLabel(model), effortLabel(effort), fast ? 'fast' : ''].filter(Boolean).join(' ')
 
+function formatEndpoint(url: string): string {
+  if (!url) return ''
+  try {
+    const u = new URL(url)
+    const host = u.hostname
+    // Shorten common domains
+    if (host.includes('openrouter')) return 'openrouter.ai'
+    if (host.includes('anthropic')) return 'anthropic.com'
+    if (host.includes('openai')) return 'openai.com'
+    if (host.includes('bedrock')) return 'bedrock'
+    return host
+  } catch {
+    return url
+  }
+}
+
 export function GoodVibesHeart({ tick, t }: { tick: number; t: Theme }) {
   const [active, setActive] = useState(false)
   const [color, setColor] = useState(t.color.accent)
@@ -277,6 +293,9 @@ export function StatusRule({
   status,
   statusColor,
   model,
+  provider,
+  baseUrl,
+  apiMode,
   modelFast,
   modelReasoningEffort,
   usage,
@@ -290,10 +309,27 @@ export function StatusRule({
   const pct = usage.context_percent
   const barColor = ctxBarColor(pct, t)
 
+  // Build provider segment with color-coded badge
+  const providerSegment = provider || baseUrl ? (
+    <>
+      <Text color={t.color.muted}> │ </Text>
+      <Text backgroundColor={t.color.statusGood} color={t.color.statusBg} bold>
+        {' ◉ '}
+      </Text>
+      <Text color={t.color.statusGood} bold>
+        {provider || 'custom'}
+      </Text>
+      {baseUrl && formatEndpoint(baseUrl) !== (provider || 'custom') && (
+        <Text color={t.color.muted}>@{formatEndpoint(baseUrl)}</Text>
+      )}
+    </>
+  ) : null
+
+  // Token usage with icons
   const ctxLabel = usage.context_max
     ? `${fmtK(usage.context_used ?? 0)}/${fmtK(usage.context_max)}`
     : usage.total > 0
-      ? `${fmtK(usage.total)} tok`
+      ? `${fmtK(usage.input)}↑/${fmtK(usage.output)}↓ (${fmtK(usage.total)})`
       : ''
 
   const bar = usage.context_max ? ctxBar(pct) : ''
@@ -309,14 +345,42 @@ export function StatusRule({
           ) : (
             <Text color={statusColor}>{status}</Text>
           )}
-          <Text color={t.color.muted}> │ {modelLabel(model, modelReasoningEffort, modelFast)}</Text>
-          {ctxLabel ? <Text color={t.color.muted}> │ {ctxLabel}</Text> : null}
-          {bar ? (
-            <Text color={t.color.muted}>
-              {' │ '}
-              <Text color={barColor}>[{bar}]</Text> <Text color={barColor}>{pct != null ? `${pct}%` : ''}</Text>
-            </Text>
+          
+          {providerSegment}
+          
+          <Text color={t.color.muted}> │ </Text>
+          <Text backgroundColor={t.color.accent} color={t.color.statusBg}>
+            {' ⚙ '}
+          </Text>
+          <Text color={t.color.accent}>{modelLabel(model, modelReasoningEffort, modelFast)}</Text>
+          
+          {ctxLabel ? (
+            <>
+              <Text color={t.color.muted}> │ </Text>
+              {usage.context_max ? (
+                <>
+                  <Text backgroundColor={barColor} color={t.color.statusBg}>
+                    {' ◈ '}
+                  </Text>
+                  <Text color={t.color.muted}>{ctxLabel}</Text>
+                </>
+              ) : (
+                <>
+                  <Text backgroundColor={t.color.primary} color={t.color.statusBg}>
+                    {' ◈ '}
+                  </Text>
+                  <Text color={t.color.primary}>{ctxLabel}</Text>
+                </>
+              )}
+              {bar ? (
+                <Text color={t.color.muted}>
+                  {' '}
+                  <Text color={barColor}>[{bar}]</Text> <Text color={barColor}>{pct != null ? `${pct}%` : ''}</Text>
+                </Text>
+              ) : null}
+            </>
           ) : null}
+          
           {sessionStartedAt ? (
             <Text color={t.color.muted}>
               {' │ '}
@@ -454,6 +518,8 @@ export function TranscriptScrollbar({ scrollRef, t }: TranscriptScrollbarProps) 
 }
 
 interface StatusRuleProps {
+  apiMode?: string
+  baseUrl?: string
   bgCount: number
   busy: boolean
   cols: number
@@ -461,6 +527,7 @@ interface StatusRuleProps {
   model: string
   modelFast?: boolean
   modelReasoningEffort?: string
+  provider?: string
   sessionStartedAt?: null | number
   showCost: boolean
   status: string

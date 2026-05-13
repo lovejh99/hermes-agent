@@ -351,6 +351,8 @@ const StatusRulePane = memo(function StatusRulePane({
   return (
     <Box marginTop={at === 'top' ? 1 : 0}>
       <StatusRule
+        apiMode={ui.info?.api_mode}
+        baseUrl={ui.info?.base_url}
         bgCount={ui.bgTasks.size}
         busy={ui.busy}
         cols={composer.cols}
@@ -358,6 +360,7 @@ const StatusRulePane = memo(function StatusRulePane({
         model={ui.info?.model ?? ''}
         modelFast={ui.info?.fast || ui.info?.service_tier === 'priority'}
         modelReasoningEffort={ui.info?.reasoning_effort}
+        provider={ui.info?.provider}
         sessionStartedAt={status.sessionStartedAt}
         showCost={ui.showCost}
         status={ui.status}
